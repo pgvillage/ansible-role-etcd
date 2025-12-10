@@ -1,48 +1,49 @@
-# etcd
+ETCD
+=========
 
-Configures an etcd cluster. Runs a voting member on every host in the `etcd_master` group
-and a proxy on the rest of the hosts in the `etcd` group.
+etcd is a distributed reliable key-value store for the most critical data of a distributed system, with a focus on being:
 
-## Requirements
+- Simple: well-defined, user-facing API (gRPC)
+- Secure: automatic TLS with optional client cert authentication
+- Fast: benchmarked 10,000 writes/sec
+- Reliable: properly distributed using Raft
 
-See [meta/main.yml](meta/main.yml)
+This role is part of PgVillage, which is an opinated PostgreSQL deployment for Virtual Machines.
+PgVillage uses stolon for HA cluster management, which in turn uses etcd for consensus and config management.
 
-## Role Variables
+Requirements
+------------
 
-See [defaults/main.yml](defaults/main.yml)
+This role aims at using an RPM from the MannemSolutions repo.
 
-## Dependencies
+Role Variables
+--------------
 
-See [meta/main.yml](meta/main.yml)
+Please see [defaults](https://github.com/pgvillage/ansible-role-etcd/blob/main/defaults/main.yml) for all variables
 
-## Example Playbook
 
-example inventory.ini
+Dependencies
+------------
 
-```ini
-# voting and non-voting members
-[etcd]
-host[1:n].test
+No dependencies
 
-# voting members
-[etcd_master]
-host[1:3].test
-```
 
-in your playbook:
+Example Playbook
+----------------
 
-```yml
-- hosts: etcd
-  roles:
-    - role: etcd_cluster
-      # if you don't want to secure your install then use
-      # etcd_secure: False
-```
+Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
 
-## License
+    - hosts: servers
+      roles:
+         - pgvillage.etcd
 
-PostgreSQL license
+License
+-------
 
-## Author Information
+PostgreSQL
 
-Inspired by the etcd roles from Andrew Rothstein <andrew.rothstein@gmail.com>
+Author Information
+------------------
+
+PgVillage is an Open Community.
+Main contributor is Nibble-IT.
