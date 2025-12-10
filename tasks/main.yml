@@ -7,25 +7,25 @@
 - name: Collect facts
   ansible.builtin.set_fact:
     cacheable: true
-    etcd_listen_public: >
+    etcd_listen_public: >-
       {{
          "0.0.0.0" if etcd_iface_public == "all"
          else ansible_default_ipv4.address if etcd_iface_public == "default"
          else hostvars[inventory_hostname]["ansible_" ~ etcd_iface_public]["ipv4"]["address"]
       }}
-    etcd_listen_cluster: >
+    etcd_listen_cluster: >-
       {{
          "0.0.0.0" if etcd_iface_cluster == "all"
          else ansible_default_ipv4.address if etcd_iface_cluster == "default"
          else hostvars[inventory_hostname]["ansible_" ~ etcd_iface_cluster]["ipv4"]["address"]
       }}
-    etcd_address_public: >
+    etcd_address_public: >-
       {{
          ansible_fqdn if not etcd_use_ips | bool
          else ansible_default_ipv4.address if etcd_iface_public in [ "all", "default" ]
          else hostvars[inventory_hostname]["ansible_" ~ etcd_iface_public]["ipv4"]["address"]
       }}
-    etcd_address_cluster: >
+    etcd_address_cluster: >-
       {{
          ansible_fqdn if not etcd_use_ips | bool
          else ansible_default_ipv4.address if etcd_iface_cluster in [ "all", "default" ]
