@@ -1,5 +1,7 @@
 ---
 galaxy_info:
+  namespace: pgvillage
+  role_name: etcd
   author: S. Mannem
   description: |
     etcd is a distributed reliable key-value store for the most critical data of a distributed system.§
