@@ -9,9 +9,11 @@ etcd_data_dir: /var/lib/etcd
 
 etcd_master_group_name: etcd_master
 etcd_cluster: >-
+  {%- set members = [] -%}
   {%- for host in groups[etcd_master_group_name] -%}
-  {{ hostvars[host]['ansible_fqdn'] }}={{ etcd_scheme }}{{ hostvars[host]['etcd_address_cluster'] }}:{{ etcd_port_peer }}{%- if not loop.last -%},{%- endif -%}
+    {%- set _ = members.append(hostvars[host].ansible_facts.fqdn ~ '=' ~ etcd_scheme ~ hostvars[host].etcd_address_cluster ~ ':' ~ etcd_port_peer) -%}
   {%- endfor -%}
+  {{ members | join(',') }}
 
 etcd_secure: false
 etcd_pki_dir: ~/pki-dir
