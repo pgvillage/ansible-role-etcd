@@ -1,13 +1,23 @@
 ---
+# Package state passed to ansible.builtin.package (e.g. `present`, `latest`).
 etcd_package_version: present
+# Name of the etcd package to install.
 etcd_package_name: etcd
 
+# OS user that owns and runs etcd.
 etcd_user: etcd
+# OS group of the etcd user.
 etcd_group: etcd
+# Directory containing the etcd binary (used in the systemd unit ExecStart).
 etcd_install_dir: /usr/local/bin
+# Base data directory (also the etcd user's home). Cluster data and pki
+# directories are created below it as `<etcd_cluster_name>.etcd` and `<etcd_cluster_name>.pki`.
 etcd_data_dir: /var/lib/etcd
 
+# Inventory group with the voting etcd members. Hosts not in this group run as etcd proxy.
 etcd_master_group_name: etcd_master
+# Value for ETCD_INITIAL_CLUSTER. By default built from all hosts in
+# `etcd_master_group_name` as `<fqdn>=<scheme><cluster address>:<etcd_port_peer>`.
 etcd_cluster: >-
   {%- set members = [] -%}
   {%- for host in groups[etcd_master_group_name] -%}
@@ -15,23 +25,42 @@ etcd_cluster: >-
   {%- endfor -%}
   {{ members | join(',') }}
 
+# Enable TLS (https) for client and peer communication, with client cert authentication.
 etcd_secure: false
+# Directory on the Ansible controller holding the keys/certs to deploy when `etcd_secure` is true.
+# Expected files: `<inventory_hostname><etcd_pki_key_suffix>`, `<inventory_hostname><etcd_pki_cert_suffix>`
+# and `ca<etcd_pki_cert_suffix>`.
 etcd_pki_dir: ~/pki-dir
+# Filename suffix of private key files in `etcd_pki_dir`.
 etcd_pki_key_suffix: -key.pem
+# Filename suffix of certificate files (host and CA) in `etcd_pki_dir`.
 etcd_pki_cert_suffix: .pem
 
+# Advertise IP addresses (true) or the host FQDN (false) for client and peer URLs.
 etcd_use_ips: true
+# Interface for client traffic: `all` (listen on 0.0.0.0), `default` (default IPv4
+# interface), or an interface name (e.g. `eth1`). Defaults to `etcd_network_iface` if set.
 etcd_iface_public: '{{ etcd_network_iface | default("all") }}'
+# Interface for peer (cluster) traffic: `all`, `default` or an interface name.
+# Defaults to `etcd_network_iface` if set.
 etcd_iface_cluster: '{{ etcd_network_iface | default("default") }}'
+# Port for client requests.
 etcd_port_client: 2379
+# Port for peer (cluster) communication.
 etcd_port_peer: 2380
 
+# Cluster name, used to name the data and pki directories below `etcd_data_dir`.
 etcd_cluster_name: test-cluster-name
+# Initial cluster token (ETCD_INITIAL_CLUSTER_TOKEN); should be unique per cluster.
 etcd_initial_cluster_token: d8bf8cc6-5158-11e6-8f13-3b32f4935bde
 
+# Init system to configure; selects tasks/<etcd_init_system>.yml (only `systemd` is supported).
 etcd_init_system: systemd
+# Enable and start etcd (and allow handlers to restart it).
 etcd_launch: true
 
-etcd_enable_v2: true # Accept etcd V2 client requests
+# Accept etcd V2 client requests (ETCD_ENABLE_V2).
+etcd_enable_v2: true
 
+# Extra environment variables written to /etc/etcd/etcd.conf, e.g. `{ETCD_HEARTBEAT_INTERVAL: "100"}`.
 etcd_additional_envvars: {}
