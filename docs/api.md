@@ -17,7 +17,7 @@ Defaults are defined in [defaults/main.yml](../defaults/main.yml).
 |----------|---------|-------------|
 | `etcd_user` | `etcd` | OS user that owns and runs etcd. |
 | `etcd_group` | `etcd` | OS group of the etcd user. |
-| `etcd_data_dir` | `/var/lib/etcd` | Base data directory (also the etcd user's home). Cluster data and pki directories are created below it as `<etcd_cluster_name>.etcd` and `<etcd_cluster_name>.pki`. |
+| `etcd_data_dir` | `/var/lib/etcd` | Base data directory (also the etcd user's home). The role creates `<etcd_cluster_name>.pki` below it and configures `<etcd_cluster_name>.etcd` as `ETCD_DATA_DIR`; etcd creates the cluster data directory when it runs. |
 
 ## Cluster
 
@@ -61,7 +61,7 @@ They are copied to `<etcd_data_dir>/<etcd_cluster_name>.pki` on the target hosts
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `etcd_init_system` | `systemd` | Init system to configure; selects `tasks/<etcd_init_system>.yml`. Only `systemd` is supported. |
-| `etcd_launch` | `true` | Enable and start etcd (and allow handlers to restart it). |
+| `etcd_launch` | `true` | Enable and start etcd (and allow handlers to restart it). When `false`, skip these actions and systemd daemon reload; an existing service is not stopped or disabled. |
 | `etcd_enable_v2` | `true` | Accept etcd V2 client requests (`ETCD_ENABLE_V2`). |
 | `etcd_additional_envvars` | `{}` | Extra environment variables written to `/etc/etcd/etcd.conf`, e.g. `{ETCD_HEARTBEAT_INTERVAL: "100"}`. |
 
