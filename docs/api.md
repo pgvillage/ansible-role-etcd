@@ -70,6 +70,7 @@ They are copied to `<etcd_data_dir>/<etcd_cluster_name>.pki` on the target hosts
 ```yaml
 - hosts: etcd
   vars:
+    etcd_master_group_name: etcd
     etcd_cluster_name: pgv-prod
     etcd_initial_cluster_token: 3f6c1e2a-0b7d-4c8e-9a41-5d2f7e8b6c10
     etcd_secure: true
