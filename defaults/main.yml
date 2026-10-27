@@ -9,7 +9,7 @@ etcd_user: etcd
 # OS group of the etcd user.
 etcd_group: etcd
 # Directory containing the etcd binary (used in the systemd unit ExecStart).
-etcd_install_dir: /usr/local/bin
+etcd_install_dir: /usr/bin
 # Base data directory (also the etcd user's home). Cluster data and pki
 # directories are created below it as `<etcd_cluster_name>.etcd` and `<etcd_cluster_name>.pki`.
 etcd_data_dir: /var/lib/etcd

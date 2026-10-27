@@ -9,7 +9,7 @@ Defaults are defined in [defaults/main.yml](../defaults/main.yml).
 |----------|---------|-------------|
 | `etcd_package_version` | `present` | Package state passed to `ansible.builtin.package` (e.g. `present`, `latest`). |
 | `etcd_package_name` | `etcd` | Name of the etcd package to install. |
-| `etcd_install_dir` | `/usr/local/bin` | Directory containing the etcd binary (used in the systemd unit `ExecStart`). |
+| `etcd_install_dir` | `/usr/bin` | Directory containing the etcd binary (used in the systemd unit `ExecStart`). |
 
 ## User and directories
 
