@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    # As in pgvillage (inventories/standard)
+    etcd_additional_envvars:
+      ETCD_AUTO_COMPACTION_RETENTION: 1
+      ETCD_AUTO_COMPACTION_MODE: revision
+  roles:
+    - role: pgvillage.etcd

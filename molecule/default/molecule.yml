@@ -1,0 +1,46 @@
+---
+# Tests the role on Rocky Linux 9 and 10 in systemd containers, with the etcd
+# package from the pgvillage package repo (see prepare.yml). Each container is
+# a single member etcd cluster of its own (its own etcd_master_group_name).
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml
+driver:
+  name: podman
+platforms:
+  - name: etcd-el9
+    image: docker.io/geerlingguy/docker-rockylinux9-ansible:latest
+    pre_build_image: true
+    command: /usr/sbin/init
+    systemd: always
+    groups:
+      - etcd_el9
+  - name: etcd-el10
+    image: docker.io/geerlingguy/docker-rockylinux10-ansible:latest
+    pre_build_image: true
+    command: /usr/sbin/init
+    systemd: always
+    groups:
+      - etcd_el10
+provisioner:
+  name: ansible
+  inventory:
+    host_vars:
+      etcd-el9:
+        etcd_master_group_name: etcd_el9
+      etcd-el10:
+        etcd_master_group_name: etcd_el10
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy
