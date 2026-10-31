@@ -1,0 +1,13 @@
+---
+- name: Prepare
+  hosts: all
+  vars:
+    pgvillage_repo: https://repo.pgvillage.org/yum/v0.3.8
+  tasks:
+    - name: Add the pgvillage package repo, so the role installs etcd by name
+      ansible.builtin.yum_repository:
+        name: pgvillage
+        description: pgvillage packages
+        baseurl: "{{ pgvillage_repo }}/el$releasever/$basearch/"
+        gpgcheck: true
+        gpgkey: https://repo.pgvillage.org/yum/pgvillage.asc

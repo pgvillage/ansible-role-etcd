@@ -1,0 +1,70 @@
+---
+- name: Verify
+  hosts: all
+  vars:
+    endpoint: "http://{{ ansible_facts.default_ipv4.address }}:2379"
+  tasks:
+    - name: Read the service states
+      ansible.builtin.service_facts:
+
+    - name: Check that etcd runs and is enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['etcd.service'].state == 'running'
+          - ansible_facts.services['etcd.service'].status == 'enabled'
+
+    - name: Check that the peer port listens
+      ansible.builtin.wait_for:
+        host: "{{ ansible_facts.default_ipv4.address }}"
+        port: 2380
+        timeout: 10
+
+    - name: Check that the endpoint is healthy
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} endpoint health
+      register: health
+      changed_when: false
+      failed_when: "'is healthy' not in health.stderr + health.stdout"
+
+    - name: List the members
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} member list --write-out json
+      register: members
+      changed_when: false
+
+    - name: Check that the host is the only member, named after its fqdn, with the advertised urls
+      ansible.builtin.assert:
+        that:
+          - member_list | length == 1
+          - member_list[0].name == ansible_facts.fqdn
+          - member_list[0].peerURLs == ['http://' ~ ansible_facts.default_ipv4.address ~ ':2380']
+          - member_list[0].clientURLs == [endpoint]
+      vars:
+        member_list: "{{ (members.stdout | from_json).members }}"
+
+    - name: Write a key
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} put molecule/test verified
+      changed_when: false
+
+    - name: Read the key
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} get molecule/test --print-value-only
+      register: value
+      changed_when: false
+      failed_when: value.stdout != 'verified'
+
+    - name: Read the etcd configuration
+      ansible.builtin.slurp:
+        src: /etc/etcd/etcd.conf
+      register: etcd_conf
+
+    - name: Check the additional environment variables and the data directory
+      ansible.builtin.assert:
+        that:
+          - "'ETCD_AUTO_COMPACTION_MODE=\"revision\"' in conf"
+          - "'ETCD_DATA_DIR=\"/var/lib/etcd/test-cluster-name.etcd\"' in conf"
+      vars:
+        conf: "{{ etcd_conf.content | b64decode }}"
+
+    - name: Check that etcd keeps its data in the data directory
+      ansible.builtin.stat:
+        path: /var/lib/etcd/test-cluster-name.etcd/member/wal
+      register: wal
+      failed_when: not wal.stat.isdir | default(false)
