@@ -10,6 +10,7 @@
     src: "{{ item.f }}.j2"
     dest: "{{ item.d }}/{{ item.f }}"
     mode: '{{ item.m | default("0644") }}'
+  notify: Restart etcd
 
 - name: Systemctl daemon-reload
   become: true
@@ -18,8 +19,20 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
+# A member without a data directory has not joined the cluster yet. The
+# restart handler restarts such members together, without waiting for health,
+# as a new cluster only gets quorum when (most of) its members run.
+- name: Check if this etcd member already has data
+  when: etcd_launch
+  become: true
+  become_user: root
+  ansible.builtin.stat:
+    path: "{{ etcd_cluster_data_dir }}/member"
+  register: etcd_member_dir
+
 - name: Launching etcd...
   when: etcd_launch
+  register: etcd_launched
   become: true
   become_user: root
   ansible.builtin.service:

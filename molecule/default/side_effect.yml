@@ -1,0 +1,36 @@
+---
+# Changes the etcd configuration of the existing (converged) members, and
+# checks that the role restarts them (one at a time, with a health check) and
+# that they are healthy again.
+- name: Side effect
+  hosts: all
+  vars:
+    endpoint: "http://{{ ansible_facts.default_ipv4.address }}:2379"
+    etcd_additional_envvars:
+      ETCD_AUTO_COMPACTION_RETENTION: 1
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_HEARTBEAT_INTERVAL: 100
+  pre_tasks:
+    - name: Read the etcd main pid before the change
+      ansible.builtin.systemd:
+        name: etcd
+      register: pid_before
+  roles:
+    - role: pgvillage.etcd
+  post_tasks:
+    - name: Read the etcd main pid after the change
+      ansible.builtin.systemd:
+        name: etcd
+      register: pid_after
+
+    - name: Check that etcd was restarted
+      ansible.builtin.assert:
+        that:
+          - pid_after.status.MainPID != '0'
+          - pid_after.status.MainPID != pid_before.status.MainPID
+
+    - name: Check that the endpoint is healthy
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} endpoint health
+      register: health
+      changed_when: false
+      failed_when: "'is healthy' not in health.stderr + health.stdout"

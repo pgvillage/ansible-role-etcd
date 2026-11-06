@@ -3,6 +3,9 @@
   ansible.builtin.package:
     name: "{{ etcd_package_name }}"
     state: "{{ etcd_package_version }}"
+  register: etcd_package_installed
+  # An upgraded package (e.g. 3.7.1 -> 3.7.3) only takes effect after a restart
+  notify: Restart etcd
 
 - name: Collect facts
   ansible.builtin.set_fact:
@@ -77,9 +80,7 @@
     owner: "{{ etcd_user }}"
     group: "{{ etcd_group }}"
     mode: "0644"
-  notify:
-    - Restart etcd masters
-    - Restart etcd members
+  notify: Restart etcd
 
 - name: Setup etcd in {{ etcd_init_system }}
   ansible.builtin.include_tasks: "{{ etcd_init_system }}.yml"
