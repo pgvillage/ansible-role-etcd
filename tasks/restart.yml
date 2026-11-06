@@ -1,0 +1,37 @@
+---
+# Restart one etcd member (etcd_restart_host) and wait until it is healthy,
+# before the next member is restarted. Included by the
+# `Restart etcd members one at a time` handler, once per member.
+
+- name: Restart etcd on {{ etcd_restart_host }}
+  become: true
+  become_user: root
+  delegate_to: "{{ etcd_restart_host }}"
+  ansible.builtin.service:
+    name: etcd
+    state: restarted
+
+- name: Wait until the restarted etcd member is healthy on {{ etcd_restart_host }}
+  become: true
+  become_user: root
+  delegate_to: "{{ etcd_restart_host }}"
+  when: hostvars[etcd_restart_host].etcd_restart_is_master | bool
+  ansible.builtin.command:
+    argv:
+      - "{{ hostvars[etcd_restart_host].etcd_restart_etcdctl }}"
+      - --endpoints
+      - "{{ hostvars[etcd_restart_host].etcd_restart_endpoint }}"
+      - endpoint
+      - health
+  environment: "{{ hostvars[etcd_restart_host].etcd_restart_environment }}"
+  register: etcd_restart_health
+  until: etcd_restart_health.rc == 0
+  retries: "{{ etcd_restart_health_retries }}"
+  delay: "{{ etcd_restart_health_delay }}"
+  changed_when: false
+
+- name: Mark etcd as restarted on {{ etcd_restart_host }}
+  delegate_to: "{{ etcd_restart_host }}"
+  delegate_facts: true
+  ansible.builtin.set_fact:
+    etcd_restart_mode: none

@@ -1,25 +1,64 @@
 ---
 # handlers file for etcd_cluster
+#
+# Tasks notify `Restart etcd`; the handlers below listen to it and run in this order.
 
-# Restart masters one-by-one to keep quorum
-- name: Restart etcd masters
-  become: true
-  become_user: root
+# Decide, per notified host, how to restart etcd:
+# - none: etcd was (re)started by this run already ("Launching etcd..." changed),
+#   so it already runs with the new package, config and certs
+# - parallel: the member has no data yet (new cluster), restart all of these
+#   together, as a new cluster only gets quorum when its members run
+# - rolling: an existing member, restart one member at a time and wait until it
+#   is healthy again, so the cluster keeps quorum
+# The facts are set on the host itself, as the rolling restart delegates to it.
+- name: Plan the etcd restart
+  listen: Restart etcd
   when: etcd_launch | bool
-  ansible.builtin.service:
-    name: etcd
-    state: restarted
-  run_once: true
-  loop: "{{ groups[etcd_master_group_name] }}"
-  delegate_to: "{{ item }}"
+  ansible.builtin.set_fact:
+    etcd_restart_mode: >-
+      {{
+         'none' if etcd_launched is changed
+         else 'rolling' if etcd_member_dir.stat.exists | default(false)
+         else 'parallel'
+      }}
+    etcd_restart_is_master: "{{ inventory_hostname in groups[etcd_master_group_name] }}"
+    etcd_restart_etcdctl: "{{ etcd_install_dir }}/etcdctl"
+    etcd_restart_endpoint: "{{ etcd_scheme }}{{ etcd_address_public }}:{{ etcd_port_client }}"
+    etcd_restart_environment: >-
+      {{
+         {
+           'ETCDCTL_API': '3',
+           'ETCDCTL_CACERT': etcd_pki_ca_cert_dest,
+           'ETCDCTL_CERT': etcd_pki_cert_dest,
+           'ETCDCTL_KEY': etcd_pki_key_dest,
+         } if etcd_secure | bool else { 'ETCDCTL_API': '3' }
+      }}
 
-# Restart non-voting members
-- name: Restart etcd members
+# Restart members of a new cluster together
+- name: Restart new etcd members
+  listen: Restart etcd
   become: true
   become_user: root
   when:
     - etcd_launch | bool
-    - inventory_hostname not in (groups[etcd_master_group_name])
+    - etcd_restart_mode == 'parallel'
   ansible.builtin.service:
     name: etcd
     state: restarted
+
+# Restart existing members one-by-one to keep quorum
+- name: Restart etcd members one at a time
+  listen: Restart etcd
+  run_once: true
+  ansible.builtin.include_tasks: restart.yml
+  loop: >-
+    {{
+       ansible_play_hosts
+       | map('extract', hostvars)
+       | selectattr('etcd_restart_mode', 'defined')
+       | selectattr('etcd_restart_mode', 'equalto', 'rolling')
+       | map(attribute='inventory_hostname')
+       | list
+    }}
+  loop_control:
+    loop_var: etcd_restart_host

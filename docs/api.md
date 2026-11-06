@@ -62,8 +62,26 @@ They are copied to `<etcd_data_dir>/<etcd_cluster_name>.pki` on the target hosts
 |----------|---------|-------------|
 | `etcd_init_system` | `systemd` | Init system to configure; selects `tasks/<etcd_init_system>.yml`. Only `systemd` is supported. |
 | `etcd_launch` | `true` | Enable and start etcd (and allow handlers to restart it). When `false`, skip these actions and systemd daemon reload; an existing service is not stopped or disabled. |
+| `etcd_restart_health_retries` | `30` | Number of `etcdctl endpoint health` checks after restarting an existing member, before the role gives up (see [Restarts](#restarts)). |
+| `etcd_restart_health_delay` | `2` | Seconds between these health checks. |
 | `etcd_enable_v2` | `true` | Accept etcd V2 client requests (`ETCD_ENABLE_V2`). |
 | `etcd_additional_envvars` | `{}` | Extra environment variables written to `/etc/etcd/etcd.conf`, e.g. `{ETCD_HEARTBEAT_INTERVAL: "100"}`. |
+
+## Restarts
+
+The role restarts etcd when the etcd package was installed or upgraded (e.g. 3.7.1 -> 3.7.3), or when
+`/etc/etcd/etcd.conf`, the systemd unit (e.g. a changed `etcd_install_dir`) or the keys/certs changed:
+
+- Members that this run started (they were not running) are not restarted again.
+- Members without data (`<etcd_cluster_name>.etcd/member` did not exist, a new cluster) are restarted
+  together, as a new cluster only gets quorum when its members run.
+- Existing members are restarted one at a time. After each restart, the role waits until
+  `etcdctl endpoint health` reports the member healthy on its advertised client URL (with the role's
+  certs when `etcd_secure` is true), up to `etcd_restart_health_retries` x `etcd_restart_health_delay`
+  seconds, before the next member is restarted. Hosts outside `etcd_master_group_name` (proxies) are
+  restarted in the same sequence, without a health check.
+
+A run without changes restarts nothing.
 
 ## Example
 

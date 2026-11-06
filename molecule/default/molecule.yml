@@ -2,6 +2,7 @@
 # Tests the role on Rocky Linux 9 and 10 in systemd containers, with the etcd
 # package from the pgvillage package repo (see prepare.yml). Each container is
 # a single member etcd cluster of its own (its own etcd_master_group_name).
+# The side effect changes the config, so the role restarts the existing members.
 dependency:
   name: galaxy
   options:
@@ -25,6 +26,8 @@ platforms:
       - etcd_el10
 provisioner:
   name: ansible
+  playbooks:
+    side_effect: side_effect.yml
   inventory:
     host_vars:
       etcd-el9:
@@ -42,5 +45,6 @@ scenario:
     - prepare
     - converge
     - idempotence
+    - side_effect
     - verify
     - destroy
