@@ -39,3 +39,28 @@
     name: etcd
     enabled: true
     state: started
+
+# The package is usually upgraded outside this role (e.g. by the linux role with
+# linux_package_state: latest, unattended-upgrades or apt), and needrestart skips
+# etcd. etcd then still runs the old binary: restart it (one member at a time,
+# see handlers/main.yml) when the binary was replaced (its ctime) after etcd
+# started. Both are in whole seconds, and the start time is read in UTC, so
+# `date` can parse it. (Reading
+# /proc/<pid>/exe would need CAP_SYS_PTRACE, which containers lack.)
+- name: Check if etcd started before its binary was replaced
+  when: etcd_launch
+  become: true
+  become_user: root
+  ansible.builtin.shell: |
+    set -e
+    if [ "$(systemctl show --property MainPID --value etcd)" -gt 0 ]; then
+      started=$(TZ=UTC systemctl show --property ExecMainStartTimestamp --value etcd)
+      if [ -n "$started" ] && [ "$started" != n/a ]; then
+        replaced_at=$(stat -c %Z '{{ etcd_install_dir }}/etcd')
+        if [ "$replaced_at" -gt "$(date -d "$started" +%s)" ]; then echo replaced; fi
+      fi
+    fi
+  register: etcd_binary_check
+  check_mode: false
+  changed_when: etcd_binary_check.stdout | default('') == 'replaced'
+  notify: Restart etcd

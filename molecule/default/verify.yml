@@ -68,3 +68,77 @@
         path: /var/lib/etcd/test-cluster-name.etcd/member/wal
       register: wal
       failed_when: not wal.stat.isdir | default(false)
+
+# Simulate a package upgrade outside the role (e.g. by the linux role or
+# unattended-upgrades): replace the etcd binary (new ctime) after etcd started.
+# Running the role again must then restart etcd, and only then: the role first
+# runs once without the replace, and must not restart etcd.
+- name: Verify the restart after an upgraded binary
+  hosts: all
+  vars:
+    endpoint: "http://{{ ansible_facts.default_ipv4.address }}:2379"
+    # The configuration of side_effect.yml, so only the binary triggers a restart
+    etcd_additional_envvars:
+      ETCD_AUTO_COMPACTION_RETENTION: 1
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_HEARTBEAT_INTERVAL: 100
+  tasks:
+    - name: Read the etcd main pid before the upgrade
+      ansible.builtin.systemd_service:
+        name: etcd
+      register: pid_before
+
+    - name: Run the role without an upgrade
+      ansible.builtin.include_role:
+        name: pgvillage.etcd
+
+    - name: Run the handlers
+      ansible.builtin.meta: flush_handlers
+
+    - name: Read the etcd main pid after the run without an upgrade
+      ansible.builtin.systemd_service:
+        name: etcd
+      register: pid_unchanged
+
+    - name: Check that etcd was not restarted
+      ansible.builtin.assert:
+        that: pid_unchanged.status.MainPID == pid_before.status.MainPID
+
+    - name: Wait, as the start time and ctime are compared in whole seconds
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Replace the etcd binary, as a package upgrade does
+      ansible.builtin.shell: cp -p /usr/bin/etcd /usr/bin/etcd.new && mv /usr/bin/etcd.new /usr/bin/etcd
+      changed_when: true
+
+    - name: Run the role again
+      ansible.builtin.include_role:
+        name: pgvillage.etcd
+
+    - name: Run the handlers after the upgrade
+      ansible.builtin.meta: flush_handlers
+
+    - name: Read the etcd main pid after the upgrade
+      ansible.builtin.systemd_service:
+        name: etcd
+      register: pid_after
+
+    - name: Check that etcd was restarted
+      ansible.builtin.assert:
+        that:
+          - pid_after.status.MainPID | int > 0
+          - pid_after.status.MainPID != pid_before.status.MainPID
+        fail_msg: "PID before: {{ pid_before.status.MainPID }}, after: {{ pid_after.status.MainPID }}"
+
+    - name: Check that the endpoint is healthy
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} endpoint health
+      register: health
+      changed_when: false
+      failed_when: "'is healthy' not in health.stderr + health.stdout"
+
+    - name: Check that the key written before the restart is still there
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} get molecule/test --print-value-only
+      register: value
+      changed_when: false
+      failed_when: value.stdout != 'verified'

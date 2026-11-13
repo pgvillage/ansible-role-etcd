@@ -3,6 +3,8 @@
 # package from the pgvillage package repo (see prepare.yml). Each container is
 # a single member etcd cluster of its own (its own etcd_master_group_name).
 # The side effect changes the config, so the role restarts the existing members.
+# verify.yml also replaces the etcd binary (as an upgrade does), and checks that
+# the role restarts etcd then.
 dependency:
   name: galaxy
   options:
