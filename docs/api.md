@@ -69,8 +69,15 @@ They are copied to `<etcd_data_dir>/<etcd_cluster_name>.pki` on the target hosts
 
 ## Restarts
 
-The role restarts etcd when the etcd package was installed or upgraded (e.g. 3.7.1 -> 3.7.3), or when
-`/etc/etcd/etcd.conf`, the systemd unit (e.g. a changed `etcd_install_dir`) or the keys/certs changed:
+The role restarts etcd when:
+
+- the role installed or upgraded the etcd package (e.g. 3.7.1 -> 3.7.3),
+- the etcd binary (`<etcd_install_dir>/etcd`) was replaced after etcd started, so etcd still runs the old
+  binary, e.g. when the package was upgraded by the linux role (`linux_package_state: latest`),
+  unattended-upgrades or apt, or
+- `/etc/etcd/etcd.conf`, the systemd unit (e.g. a changed `etcd_install_dir`) or the keys/certs changed.
+
+How the members are restarted:
 
 - Members that this run started (they were not running) are not restarted again.
 - Members without data (`<etcd_cluster_name>.etcd/member` did not exist, a new cluster) are restarted
@@ -81,7 +88,9 @@ The role restarts etcd when the etcd package was installed or upgraded (e.g. 3.7
   seconds, before the next member is restarted. Hosts outside `etcd_master_group_name` (proxies) are
   restarted in the same sequence, without a health check.
 
-A run without changes restarts nothing.
+A run without changes restarts nothing. As the role restarts etcd itself, exclude `etcd.service` from
+needrestart on Ubuntu (the pgvillage linux role does), and run the role after patching the OS, so etcd
+runs the new binary.
 
 ## Example
 

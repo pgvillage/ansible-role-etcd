@@ -58,9 +58,11 @@ etcd_initial_cluster_token: d8bf8cc6-5158-11e6-8f13-3b32f4935bde
 etcd_init_system: systemd
 # Enable and start etcd (and allow handlers to restart it).
 etcd_launch: true
-# After a restart of an existing member (package upgrade, config, unit file or
-# certs changed), wait until `etcdctl endpoint health` reports it healthy before
-# the next member is restarted. Number of health checks, and seconds between them.
+# etcd is restarted when its package was installed or upgraded (also outside the
+# role: the etcd binary changed after etcd started), or the config, unit file or
+# certs changed. After a restart of an existing member, wait until `etcdctl
+# endpoint health` reports it healthy before the next member is restarted.
+# Number of health checks, and seconds between them.
 etcd_restart_health_retries: 30
 etcd_restart_health_delay: 2
 
