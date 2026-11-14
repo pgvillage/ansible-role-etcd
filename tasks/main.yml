@@ -7,6 +7,27 @@
   # An upgraded package (e.g. 3.7.1 -> 3.7.3) only takes effect after a restart
   notify: Restart etcd
 
+# Older pgvillage packages installed etcd in /usr/local/bin, newer ones in
+# /usr/bin. With `present` an old package stays, and the unit would point to a
+# binary that is not there: fail before the config and unit change.
+- name: Check that the etcd binary exists
+  ansible.builtin.stat:
+    path: "{{ etcd_install_dir }}/etcd"
+  register: etcd_binary
+
+- name: Fail when the etcd binary is missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ etcd_install_dir }}/etcd does not exist after installing package
+      {{ etcd_package_name }} (state {{ etcd_package_version }}).
+      Older pgvillage packages install etcd in /usr/local/bin.
+      Set etcd_package_version: latest (once) to move to the new package,
+      or set etcd_install_dir: /usr/local/bin to keep the old build.
+  when:
+    - not etcd_binary.stat.exists
+    # In check mode a package that is not installed yet has no binary
+    - not (ansible_check_mode and etcd_package_installed is changed)
+
 - name: Collect facts
   ansible.builtin.set_fact:
     cacheable: true

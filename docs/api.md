@@ -9,7 +9,7 @@ Defaults are defined in [defaults/main.yml](../defaults/main.yml).
 |----------|---------|-------------|
 | `etcd_package_version` | `present` | Package state passed to `ansible.builtin.package` (e.g. `present`, `latest`). |
 | `etcd_package_name` | `etcd` | Name of the etcd package to install. |
-| `etcd_install_dir` | `/usr/bin` | Directory containing the etcd binary (used in the systemd unit `ExecStart`). |
+| `etcd_install_dir` | `/usr/bin` | Directory containing the etcd binary (used in the systemd unit `ExecStart`). The role fails before it changes the config or unit when `<etcd_install_dir>/etcd` does not exist after the package install. Older pgvillage packages installed etcd in `/usr/local/bin`: set `etcd_package_version: latest` once to move to the new package, or set `etcd_install_dir: /usr/local/bin` to keep the old build. |
 
 ## User and directories
 

@@ -142,3 +142,55 @@
       register: value
       changed_when: false
       failed_when: value.stdout != 'verified'
+
+# An old package installed etcd in /usr/local/bin, while the unit points to
+# etcd_install_dir (/usr/bin). Simulate that by moving the binary away: the role
+# must fail with a clear message before it changes the unit, and etcd keeps running.
+- name: Verify the failure when the etcd binary is missing
+  hosts: all
+  vars:
+    endpoint: "http://{{ ansible_facts.default_ipv4.address }}:2379"
+    etcd_additional_envvars:
+      ETCD_AUTO_COMPACTION_RETENTION: 1
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_HEARTBEAT_INTERVAL: 100
+  tasks:
+    - name: Move the etcd binary away, as if an old package put it in /usr/local/bin
+      ansible.builtin.command: mv /usr/bin/etcd /usr/local/bin/etcd
+      changed_when: true
+
+    - name: Run the role with the binary missing
+      block:
+        - name: Run the role
+          ansible.builtin.include_role:
+            name: pgvillage.etcd
+
+        - name: The role should have failed
+          ansible.builtin.fail:
+            msg: The role did not fail on the missing etcd binary
+      rescue:
+        - name: Check the failure message
+          ansible.builtin.assert:
+            that:
+              - "'/usr/bin/etcd does not exist' in ansible_failed_result.msg"
+              - "'etcd_package_version: latest' in ansible_failed_result.msg"
+            fail_msg: "{{ ansible_failed_result.msg }}"
+      always:
+        - name: Put the etcd binary back
+          ansible.builtin.command: mv /usr/local/bin/etcd /usr/bin/etcd
+          changed_when: true
+
+    - name: Read the etcd unit file
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/etcd.service
+      register: etcd_unit
+
+    - name: Check that the unit still points to /usr/bin/etcd
+      ansible.builtin.assert:
+        that: "'/usr/bin/etcd' in etcd_unit.content | b64decode"
+
+    - name: Check that the endpoint is still healthy
+      ansible.builtin.command: etcdctl --endpoints {{ endpoint }} endpoint health
+      register: health
+      changed_when: false
+      failed_when: "'is healthy' not in health.stderr + health.stdout"
